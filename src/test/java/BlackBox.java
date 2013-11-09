@@ -58,8 +58,14 @@ public class BlackBox {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
         if (thread.isAlive()) {
             thread.interrupt();
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         return lines.toArray(new String[lines.size()]);
