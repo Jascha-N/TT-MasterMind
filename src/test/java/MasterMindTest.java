@@ -1,5 +1,4 @@
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -7,76 +6,92 @@ import java.util.regex.Pattern;
 public class MasterMindTest extends BlackBox {
 
     private static final Random random = new Random();
-    //private static final int MAX_TURNS = Integer.MAX_VALUE;
     private static final char[] PEGS = {'r', 'o', 'y', 'g', 'b', 'i'};
 
-    private void testRandomInvalidInputs(String... validInputs) {
-        testRandomInvalidInputs(5, validInputs);
-    }
+    // UTILITY FUNCTIONS
 
-    private void testRandomInvalidInputs(int count, String... validInputs) {
-        Arrays.sort(validInputs);
+//    private void testRandomInvalidInputs(String... validInputs) {
+//        testRandomInvalidInputs(5, validInputs);
+//    }
+//
+//    private void testRandomInvalidInputs(int count, String... validInputs) {
+//        Arrays.sort(validInputs);
+//
+//        for (int i = 0; i < count; i++) {
+//            int len = random.nextInt(100);
+//            String str;
+//            do {
+//                char[] buf = new char[len];
+//                for (int j = 0; j < buf.length; j++) {
+//                    buf[j] = (char) (random.nextInt(128 - 32) + 32);
+//                }
+//                str = new String(buf);
+//            } while(Arrays.binarySearch(validInputs, str) >= 0);
+//
+//            testInvalidInput(str);
+//        }
+//    }
+//
+//    private void testInvalidInput(String input) {
+//        performInput(input);
+//        String[] output = readLines();
+//        printOutput(output);
+//        test(output.length > 0 && output[0].equals("Error in reading your input."));
+//    }
+//
+//    private void testWelcomeScreen() {
+//        String[] output = readLines();
+//        printOutput(output);
+//        test(output.length > 0);
+//        test(output[0].startsWith("Welcome to MasterMind"));
+//        test(output[output.length - 1].startsWith("Ready to start"));
+//
+//        testInvalidInput("c");
+//        testInvalidInput("x");
+//        testRandomInvalidInputs("y", "n", "s");
+//    }
+//
+//    private String performRandomInput(String... inputs) {
+//        String input = inputs[random.nextInt(inputs.length)];
+//        performInput(input);
+//        return input;
+//    }
+//
 
-        for (int i = 0; i < count; i++) {
-            int len = random.nextInt(100);
-            String str;
-            do {
-                char[] buf = new char[len];
-                for (int j = 0; j < buf.length; j++) {
-                    buf[j] = (char) (random.nextInt(128 - 32) + 32);
-                }
-                str = new String(buf);
-            } while(Arrays.binarySearch(validInputs, str) >= 0);
-
-            testInvalidInput(str);
-        }
-    }
-
-    private void testInvalidInput(String input) {
-        performInput(input);
-        String[] output = readLines();
-        printOutput(output);
-        test(output.length > 0 && output[0].equals("Error in reading your input."));
-    }
-
-    private void testWelcomeScreen() {
-        String[] output = readLines();
-        printOutput(output);
-        test(output.length > 0);
-        test(output[0].startsWith("Welcome to MasterMind"));
-        test(output[output.length - 1].startsWith("Ready to start"));
-
-        testInvalidInput("c");
-        testInvalidInput("x");
-        testRandomInvalidInputs("y", "n", "s");
-    }
-
-    private String performRandomInput(String... inputs) {
-        String input = inputs[random.nextInt(inputs.length)];
-        performInput(input);
-        return input;
-    }
-
+    /**
+     * Input a randomly selected input from a list of given inputs and return it.
+     *
+     * @param inputs list of inputs to randomly choose from
+     * @return the selected peg
+     */
     private char performRandomInput(char... inputs) {
         char input = inputs[random.nextInt(inputs.length)];
         performInput(input);
         return input;
     }
 
+    /**
+     * Input a randomly selected peg and return it.
+     *
+     * @return the selected peg
+     */
     private char inputRandomPeg() {
         return performRandomInput(PEGS);
     }
 
-    // Play one game of mastermind
+    /**
+     * Tests a single game of MasterMind.
+     */
     private void testGame() {
         boolean solutionFound = false;
         int guess = 0;
         do {
+            // Collects the chosen pegs to be checked at the end of a guess; i.e. "r o y g"
             StringBuilder inputs = new StringBuilder();
 
             // Test Case ID: 4
             {
-                char input = PEGS[guess % PEGS.length];
+                char input = PEGS[guess % PEGS.length]; // Rotate the chosen peg, so that each one is chosen at least once.
                 performInput(input);
                 inputs.append(input);
                 String[] output = readAndPrintLines();
@@ -88,11 +103,12 @@ public class MasterMindTest extends BlackBox {
                 char input = inputRandomPeg();
                 inputs.append(' ').append(input);
                 String[] output = readAndPrintLines();
+
                 String description = "Test 5 (step " + j + ")";
                 if (j < 4)
                     test(description, output.length > 0 && output[0].startsWith("Color of peg " + (j + 1)));
                 else {
-                    test("Test 5 (step 4)", output.length > 4 &&
+                    test(description, output.length > 4 &&
                             output[1].contains("Your guess: "+inputs.toString()) &&
                             output[3].matches("\\s*Your hits: [Hhm] [Hhm] [Hhm] [Hhm].*"));
 
@@ -105,7 +121,6 @@ public class MasterMindTest extends BlackBox {
                         // int guesses = Integer.parseInt(matcher.group(1));
                         // test("...", guesses == guess + 1)
                     }
-
                 }
             }
 
@@ -114,12 +129,13 @@ public class MasterMindTest extends BlackBox {
                 performInput('c');
                 readAndPrintLines();
             }
-        } while(!solutionFound); // TODO: Randomly guessing until it finds the answer is not going to work
+        } while(!solutionFound); // TODO: Randomly guessing until it finds the answer will probably not work
     }
 
+    // This is where the tests go.
     @Override
     protected void performTests() throws Exception {
-        readAndPrintLines(); // Print welcome screen
+        readAndPrintLines(); // Consume and print welcome screen.
 
         // Test Case ID: 2
         {
@@ -138,11 +154,18 @@ public class MasterMindTest extends BlackBox {
         testGame();
     }
 
+    // Runs the game of MasterMind.
     @Override
     protected void runProgram(String[] args) throws Exception {
         MasterMind.main(args);
     }
 
+    /**
+     * Main entry point for testing.
+     *
+     * @param args program arguments
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException {
         BlackBox blackBox = new MasterMindTest();
         blackBox.run(args);
