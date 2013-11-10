@@ -2,7 +2,7 @@ import java.io.*;
 
 public abstract class BlackBox {
 
-    private static final long DEFAULT_TIMEOUT = 500;
+    private static final long DEFAULT_TIMEOUT = 100;
 
     protected PrintStream out;
     protected InputStream in;
@@ -58,12 +58,14 @@ public abstract class BlackBox {
         long start = System.currentTimeMillis();
         StringBuilder builder = new StringBuilder();
         try {
-            while (System.currentTimeMillis() < start + timeout) {
+            while (System.currentTimeMillis() < start + timeout || reader.ready()) {
                 if (reader.ready()) {
                     int c = reader.read();
                     if (c == -1) // End of stream; generally should not happen
                         break;
                     builder.append((char) c);
+                } else {
+                    Thread.yield();
                 }
             }
         } catch (IOException e) {
