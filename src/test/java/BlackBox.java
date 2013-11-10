@@ -2,6 +2,8 @@ import java.io.*;
 
 public abstract class BlackBox {
 
+    private static final long DEFAULT_TIMEOUT = 500;
+
     protected PrintStream out;
     protected InputStream in;
     private int testsFailed, testsPassed;
@@ -74,11 +76,17 @@ public abstract class BlackBox {
     }
 
     protected String[] readLines() {
-        return readLines(1000);
+        return readLines(DEFAULT_TIMEOUT);
     }
 
-    protected void printOutput() {
-        printOutput(readLines());
+    protected String[] readAndPrintLines() {
+        return readAndPrintLines(DEFAULT_TIMEOUT);
+    }
+
+    protected String[] readAndPrintLines(long timeout) {
+        String[] output = readLines(timeout);
+        printOutput(output);
+        return output;
     }
 
     protected void printOutput(String[] lines) {
@@ -99,13 +107,17 @@ public abstract class BlackBox {
         out.println("IN:    " + input);
     }
 
-    protected void test(boolean expression) {
+    protected void test(String description, boolean expression) {
         if (expression) {
             testsPassed++;
         } else {
             testsFailed++;
-            System.err.printf("TEST:  Test %d failed.%n", testsPassed + testsFailed);
+            System.err.printf("TEST:  %s failed.%n", description);
         }
+    }
+
+    protected void test(boolean expression) {
+        test("Test", expression);
     }
 
     protected abstract void runProgram(String args[]) throws Exception;
