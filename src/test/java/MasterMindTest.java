@@ -63,8 +63,9 @@ public class MasterMindTest extends BlackBox {
      *
      * @param inputs list of inputs to randomly choose from
      * @return the selected peg
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    private char performRandomInput(char... inputs) {
+    private char performRandomInput(char... inputs) throws ProgramCrashedException {
         char input = inputs[random.nextInt(inputs.length)];
         performInput(input);
         return input;
@@ -74,15 +75,18 @@ public class MasterMindTest extends BlackBox {
      * Input a randomly selected peg and return it.
      *
      * @return the selected peg
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    private char inputRandomPeg() {
+    private char inputRandomPeg() throws ProgramCrashedException {
         return performRandomInput(PEGS);
     }
 
     /**
      * Tests a single game of MasterMind.
+     *
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    private void testGame() {
+    private void testGame() throws ProgramCrashedException {
         boolean solutionFound = false;
         int guess = 0;
         do {
@@ -129,12 +133,14 @@ public class MasterMindTest extends BlackBox {
                 performInput('c');
                 readAndPrintLines();
             }
-        } while(!solutionFound); // TODO: Randomly guessing until it finds the answer will probably not work
+
+            guess++;
+        } while(!solutionFound); // Randomly guessing until it finds the answer actually does work
     }
 
     // This is where the tests go.
     @Override
-    protected void performTests() throws Exception {
+    protected void performTests() throws ProgramCrashedException {
         readAndPrintLines(); // Consume and print welcome screen.
 
         // Test Case ID: 2

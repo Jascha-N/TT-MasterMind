@@ -2,11 +2,14 @@ import java.io.*;
 
 public abstract class BlackBox {
 
-    private static final long DEFAULT_READ_DURATION = 100;
+    private static final long    TIMEOUT     = Long.parseLong(      System.getProperty("blackbox.timeout", "100" ));
+    private static final int     BUFFER_SIZE = Integer.parseInt(    System.getProperty("blackbox.buffer" , "8129"));
+    private static final boolean PRINT_DEBUG = Boolean.parseBoolean(System.getProperty("blackbox.debug"  , "true"));
 
     private int testsFailed, testsPassed;
-    private BufferedReader reader;
+    private Reader reader;
     private PrintWriter writer;
+    private volatile Throwable programException = null;
 
     /**
      * Access to the actual stdout.
@@ -26,14 +29,14 @@ public abstract class BlackBox {
      */
     public void run(final String[] args) throws IOException {
         out = System.out;
-        PipedInputStream programOut = new PipedInputStream();
-        reader = new BufferedReader(new InputStreamReader(programOut));
+        PipedInputStream programOut = new PipedInputStream(BUFFER_SIZE);
+        reader = new InputStreamReader(programOut);
         System.setOut(new PrintStream(new PipedOutputStream(programOut), true));
 
         in = System.in;
         PipedOutputStream programIn = new PipedOutputStream();
         writer = new PrintWriter(programIn, true);
-        System.setIn(new BufferedInputStream(new PipedInputStream(programIn)));
+        System.setIn(new PipedInputStream(programIn));
 
         try {
             Thread thread = new Thread() {
@@ -42,8 +45,7 @@ public abstract class BlackBox {
                     try {
                         runProgram(args);
                     } catch(Exception e) {
-                        System.err.println("The tested program crashed:");
-                        e.printStackTrace();
+                        programException = e;
                     }
                 }
             };
@@ -57,10 +59,8 @@ public abstract class BlackBox {
                 performTests();
                 System.err.println();
                 System.err.printf("Tests failed: %d; tests succeeded: %d.%n", testsFailed, testsPassed);
-            } catch(Exception e) {
-                System.err.println("Fatal error:");
+            } catch(ProgramCrashedException e) {
                 e.printStackTrace();
-                System.exit(1);
             }
         } finally {
             System.setOut(out);
@@ -69,23 +69,47 @@ public abstract class BlackBox {
     }
 
     /**
-     * Reads all lines from the program's output within a given amount of time.
+     * Checks if the program has crashed and throws an exception if it has.
      *
-     * It will keep reading data if it is available even when the duration has passed.
-     *
-     * @param duration capture duration in milliseconds
-     * @return output lines
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    protected String[] readLines(long duration) {
-        long start = System.currentTimeMillis();
+    protected void checkCrash() throws ProgramCrashedException {
+        if (programException != null) {
+            throw new ProgramCrashedException("The tested program crashed: " + programException, programException);
+        }
+    }
+
+    /**
+     * Reads all lines from the program's output.
+     *
+     * It will stop reading data if no new data has been received for the configured timeout duration.
+     *
+     * @return output lines
+     * @throws ProgramCrashedException when the tested program has crashed
+     */
+    protected String[] readLines() throws ProgramCrashedException {
         StringBuilder builder = new StringBuilder();
         try {
-            while (System.currentTimeMillis() < start + duration || reader.ready()) {
+            long start = System.currentTimeMillis();
+
+            while (System.currentTimeMillis() < start + TIMEOUT || reader.ready()) {
+                checkCrash();
+
                 if (reader.ready()) {
                     int c = reader.read();
                     if (c == -1) // End of stream; generally should not happen
                         break;
                     builder.append((char) c);
+
+//                    if (builder.length() % BUFFER_SIZE == 0) { // Wait for buffer to refill
+//                        try {
+//                            Thread.sleep(10 * TIMEOUT);
+//                        } catch (InterruptedException e) {
+//                            Thread.currentThread().interrupt();
+//                        }
+//                    }
+
+                    start = System.currentTimeMillis();
                 } else {
                     Thread.yield();
                 }
@@ -93,6 +117,7 @@ public abstract class BlackBox {
         } catch (IOException e) {
             // Nothing to do here
         }
+
         if (builder.length() > 0)
             return builder.toString().split("\r?\n");
 
@@ -100,40 +125,15 @@ public abstract class BlackBox {
     }
 
     /**
-     * Read output with the default duration.
+     * Reads all output lines, prints and then returns the result.
      *
      * @return output lines
-     *
-     * @see BlackBox#readLines(long)
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    protected String[] readLines() {
-        return readLines(DEFAULT_READ_DURATION);
-    }
-
-    /**
-     * Reads all output lines for the given duration, prints and then returns the result.
-     *
-     * @param duration capture duration in milliseconds
-     * @return output lines
-     *
-     * @see BlackBox#readLines(long)
-     */
-    protected String[] readAndPrintLines(long duration) {
-        String[] output = readLines(duration);
+    protected String[] readAndPrintLines() throws ProgramCrashedException {
+        String[] output = readLines();
         printOutput(output);
         return output;
-    }
-
-    /**
-     * Reads all output lines for the default duration, prints and then returns the result.
-     *
-     * @return output lines
-     *
-     * @see BlackBox#readLines(long)
-     * @see BlackBox#readAndPrintLines(long)
-     */
-    protected String[] readAndPrintLines() {
-        return readAndPrintLines(DEFAULT_READ_DURATION);
     }
 
     /**
@@ -142,10 +142,12 @@ public abstract class BlackBox {
      * @param lines lines to print
      */
     protected void printOutput(String[] lines) {
-        if (lines.length > 0) {
-            out.println("OUT:   " + lines[0]);
-            for (int i = 1; i < lines.length; i++) {
-                out.println("       " + lines[i]);
+        if (PRINT_DEBUG) {
+            if (lines.length > 0) {
+                out.println("OUT:   " + lines[0]);
+                for (int i = 1; i < lines.length; i++) {
+                    out.println("       " + lines[i]);
+                }
             }
         }
     }
@@ -154,20 +156,24 @@ public abstract class BlackBox {
      * Presents the program with the given line of input.
      *
      * @param line line of input
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    protected void performInput(String line) {
+    protected void performInput(String line) throws ProgramCrashedException {
+        checkCrash();
         writer.println(line);
-        out.println("IN:    " + line);
+        if (PRINT_DEBUG)
+            out.println("IN:    " + line);
     }
 
     /**
      * Presents the program with the given character as a line of input.
      *
      * @param input input character
+     * @throws ProgramCrashedException when the tested program has crashed
      *
      * @see BlackBox#performInput(String)
      */
-    protected void performInput(char input) {
+    protected void performInput(char input) throws ProgramCrashedException {
         performInput(String.valueOf(input));
     }
 
@@ -210,8 +216,8 @@ public abstract class BlackBox {
     /**
      * Performs a series of user-defined tests.
      *
-     * @throws Exception
+     * @throws ProgramCrashedException when the tested program has crashed
      */
-    protected abstract void performTests() throws Exception;
+    protected abstract void performTests() throws ProgramCrashedException;
 
 }
