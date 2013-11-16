@@ -9,7 +9,8 @@ public abstract class BlackBox {
     private int testsFailed, testsPassed;
     private Reader reader;
     private PrintWriter writer;
-    private volatile Throwable programException = null;
+    private volatile Throwable programException;
+    private volatile boolean programTerminated;
 
     /**
      * Access to the actual stdout.
@@ -38,44 +39,61 @@ public abstract class BlackBox {
         writer = new PrintWriter(programIn, true);
         System.setIn(new PipedInputStream(programIn));
 
+        testsFailed = 0;
+        testsPassed = 0;
+
+        programTerminated = false;
+        programException = null;
+
         try {
             Thread thread = new Thread() {
                 @Override
                 public void run() {
                     try {
                         runProgram(args);
-                    } catch(Exception e) {
-                        programException = e;
+                    } catch(Throwable t) {
+                        programException = t;
                     }
+                    programTerminated = true;
                 }
             };
 
             thread.start();
 
-            testsFailed = 0;
-            testsPassed = 0;
-
             try {
                 performTests();
+//                try {
+//                    thread.join(); // Wait for program to finish
+//                } catch (InterruptedException e) {
+//                    Thread.currentThread().interrupt();
+//                }
                 System.err.println();
                 System.err.printf("Tests failed: %d; tests succeeded: %d.%n", testsFailed, testsPassed);
-            } catch(ProgramCrashedException e) {
+            } catch(ProgramTerminatedException e) {
                 e.printStackTrace();
+                System.exit(1);
             }
         } finally {
+            System.in.close();
+            System.out.close();
+            reader.close();
+            writer.close();
             System.setOut(out);
             System.setIn(in);
         }
     }
 
     /**
-     * Checks if the program has crashed and throws an exception if it has.
+     * Checks if the program has terminated and throws an exception if it has.
      *
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      */
-    protected void checkCrash() throws ProgramCrashedException {
+    protected void checkCrash() throws ProgramTerminatedException {
         if (programException != null) {
-            throw new ProgramCrashedException("The tested program crashed: " + programException, programException);
+            throw new ProgramTerminatedException("The program crashed: " + programException, programException);
+        }
+        if (programTerminated) {
+            throw new ProgramTerminatedException("Program terminated unexpectedly.");
         }
     }
 
@@ -85,9 +103,9 @@ public abstract class BlackBox {
      * It will stop reading data if no new data has been received for the configured timeout duration.
      *
      * @return output lines
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      */
-    protected String[] readLines() throws ProgramCrashedException {
+    protected String[] readLines() throws ProgramTerminatedException {
         StringBuilder builder = new StringBuilder();
         try {
             long start = System.currentTimeMillis();
@@ -115,7 +133,7 @@ public abstract class BlackBox {
                 }
             }
         } catch (IOException e) {
-            // Nothing to do here
+            checkCrash(); // If the pipe end has closed
         }
 
         if (builder.length() > 0)
@@ -128,9 +146,9 @@ public abstract class BlackBox {
      * Reads all output lines, prints and then returns the result.
      *
      * @return output lines
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      */
-    protected String[] readAndPrintLines() throws ProgramCrashedException {
+    protected String[] readAndPrintLines() throws ProgramTerminatedException {
         String[] output = readLines();
         printOutput(output);
         return output;
@@ -156,9 +174,9 @@ public abstract class BlackBox {
      * Presents the program with the given line of input.
      *
      * @param line line of input
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      */
-    protected void performInput(String line) throws ProgramCrashedException {
+    protected void performInput(String line) throws ProgramTerminatedException {
         checkCrash();
         writer.println(line);
         if (PRINT_DEBUG)
@@ -169,11 +187,11 @@ public abstract class BlackBox {
      * Presents the program with the given character as a line of input.
      *
      * @param input input character
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      *
      * @see BlackBox#performInput(String)
      */
-    protected void performInput(char input) throws ProgramCrashedException {
+    protected void performInput(char input) throws ProgramTerminatedException {
         performInput(String.valueOf(input));
     }
 
@@ -216,8 +234,8 @@ public abstract class BlackBox {
     /**
      * Performs a series of user-defined tests.
      *
-     * @throws ProgramCrashedException when the tested program has crashed
+     * @throws ProgramTerminatedException when the tested program has terminated
      */
-    protected abstract void performTests() throws ProgramCrashedException;
+    protected abstract void performTests() throws ProgramTerminatedException;
 
 }
