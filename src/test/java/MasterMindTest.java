@@ -88,12 +88,12 @@ public class MasterMindTest extends BlackBox {
      */
     private void testGame() throws ProgramTerminatedException {
         boolean solutionFound = false;
-        // Collects the chosen pegs to be checked at the end of a guess; i.e. "r o y g"
         int guess = 0;
 
         // Test Case ID: 6 & 9
         String firstOutput = "", curOutput = "";
         while(!solutionFound && guess < 3) {
+            // Collects the chosen pegs to be checked at the end of a guess; i.e. "r o y g"
             StringBuilder inputs = new StringBuilder();
             for (int j = 1; j <= 4; j++) {
                 char input = PEGS[j];
@@ -147,7 +147,7 @@ public class MasterMindTest extends BlackBox {
                         y = y + 2;
                     }
                 }
-                
+
                 test("Test 9", diff < 2);
             }
             guess++;
@@ -193,19 +193,21 @@ public class MasterMindTest extends BlackBox {
             if (!solutionFound) {
                 // Test Case ID: 7
                 performInput('c');
-                String [] output = readAndPrintLines();
+                String[] output = readAndPrintLines();
                 test("Test 7", output[1].contains("Summary of guesses"));
-                test("Test 7_2", output[guess+2].contains("Guess " + (guess+1) + ": " + inputs.toString()));
+                test("Test 7_2", output[guess+2].contains("Guess " + (guess + 1) + ": " + inputs.toString()));
             }
 
             guess++;
         }
     }
 
-    /* Test a single input
+    /**
+     * Test a single input.
+     *
      * @param test The test case ID
      * @param input The character to input
-     * @parm msg (Part of) the expected output
+     * @param msg (Part of) the expected output
      * @throws ProgramTerminatedException when the tested program has terminated
      */
     protected void inputTest(int test, char input, String msg) throws ProgramTerminatedException {
@@ -230,7 +232,7 @@ public class MasterMindTest extends BlackBox {
         inputTest(4,'o',"Color of peg 3");
         inputTest(4,'y',"Color of peg 4");
         inputTest(4,'i',"Color of peg 5");
-        inputTest(4,'v',"\n"); //What string to compare it with? "\n" and " " are wrong
+        inputTest(4,'v',"");
         inputTest(7,'s',"Ready to start a new game?");
 
         inputTest(2,'y',"Please choose: s = standard mode");
