@@ -88,11 +88,73 @@ public class MasterMindTest extends BlackBox {
      */
     private void testGame() throws ProgramTerminatedException {
         boolean solutionFound = false;
+        // Collects the chosen pegs to be checked at the end of a guess; i.e. "r o y g"
         int guess = 0;
-        do {
-            // Collects the chosen pegs to be checked at the end of a guess; i.e. "r o y g"
-            StringBuilder inputs = new StringBuilder();
 
+        // Test Case ID: 6 & 9
+        String firstOutput = "", curOutput = "";
+        while(!solutionFound && guess < 3) {
+            StringBuilder inputs = new StringBuilder();
+            for (int j = 1; j <= 4; j++) {
+                char input = PEGS[j];
+                if (guess == 2 && j == 1) // Test Case ID: 9 - change one input
+                    input = PEGS[5];
+                performInput(input);
+                inputs.append(' ').append(input);
+                String[] output = readAndPrintLines();
+
+                String description = "Test 5 (step " + j + ")";
+                if (j < 4)
+                    test(description, output.length > 0 && output[0].startsWith("Color of peg " + (j + 1)));
+                else {
+                    test(description, output.length > 4 &&
+                            output[1].contains("Your guess:"+inputs.toString()) &&
+                            output[3].matches("\\s*Your hits: [Hhm] [Hhm] [Hhm] [Hhm].*"));
+
+                    if (!output[4].startsWith("Would you like")) {
+                        solutionFound = true;
+                        Matcher matcher = Pattern.compile("It took you (\\d+) guesses.").matcher(output[5]);
+                        test("Test 5b (step 4)", matcher.matches());
+                    }
+                    else {
+                        performInput('c');
+                        output = readAndPrintLines();
+                        String [] splitOutput = output[guess+2].split("\\:");
+                        curOutput = splitOutput[1];
+                    }
+                }
+            }
+
+            if (guess == 0)
+                firstOutput = curOutput;
+            else if (guess == 1) // Test Case ID: 6
+                test("Test 6", firstOutput.equals(curOutput));
+            else { // Test Case ID: 9
+                int diff = 0, x = 12, y = 12;
+                //Find how many chars are different
+                //Note that chars are sorted, so Hamming distance is insufficient
+                while (x < firstOutput.length() && y < firstOutput.length()) {
+                    if (firstOutput.charAt(x) > curOutput.charAt(y)) {
+                        diff++;
+                        y = y + 2;
+                    }
+                    else if (firstOutput.charAt(x) < curOutput.charAt(y)) {
+                        diff++;
+                        x = x + 2;
+                    }
+                    else {
+                        x = x + 2;
+                        y = y + 2;
+                    }
+                }
+                
+                test("Test 9", diff < 2);
+            }
+            guess++;
+        }
+
+        while(!solutionFound) {// Randomly guessing until it finds the answer actually does work
+            StringBuilder inputs = new StringBuilder();
             // Test Case ID: 4
             {
                 char input = PEGS[guess % PEGS.length]; // Rotate the chosen peg, so that each one is chosen at least once.
@@ -129,13 +191,30 @@ public class MasterMindTest extends BlackBox {
             }
 
             if (!solutionFound) {
-                // TODO: Test Case ID: 7
+                // Test Case ID: 7
                 performInput('c');
-                readAndPrintLines();
+                String [] output = readAndPrintLines();
+                test("Test 7", output[1].contains("Summary of guesses"));
+                test("Test 7_2", output[guess+2].contains("Guess " + (guess+1) + ": " + inputs.toString()));
             }
 
             guess++;
-        } while(!solutionFound); // Randomly guessing until it finds the answer actually does work
+        }
+    }
+
+    /* Test a single input
+     * @param test The test case ID
+     * @param input The character to input
+     * @parm msg (Part of) the expected output
+     * @throws ProgramTerminatedException when the tested program has terminated
+     */
+    protected void inputTest(int test, char input, String msg) throws ProgramTerminatedException {
+        performInput('q');
+        String[] output = readAndPrintLines();
+        test("Test 10", output.length > 0 && output[0].startsWith("Error in reading"));
+        performInput(input);
+        output = readAndPrintLines();
+        test("Test " + test, output.length > 0 && output[0].startsWith(msg));
     }
 
     // This is where the tests go.
@@ -143,19 +222,19 @@ public class MasterMindTest extends BlackBox {
     protected void performTests() throws ProgramTerminatedException {
         readAndPrintLines(); // Consume and print welcome screen.
 
-        // Test Case ID: 2
-        {
-            performInput('y');
-            String[] output = readAndPrintLines();
-            test("Test 2", output.length > 0 && output[0].startsWith("Please choose: s = standard mode"));
-        }
+        inputTest(2,'s',"****************");
+        inputTest(2,'y',"Please choose: s = standard mode");
+        inputTest(3,'c',"Please choose the colors for 5 holes from");
 
-        // Test Case ID: 3
-        {
-            performInput('s');
-            String[] output = readAndPrintLines();
-            test("Test 3", output.length > 0 && output[0].startsWith("Please choose four colors from"));
-        }
+        inputTest(4,'r',"Color of peg 2");
+        inputTest(4,'o',"Color of peg 3");
+        inputTest(4,'y',"Color of peg 4");
+        inputTest(4,'i',"Color of peg 5");
+        inputTest(4,'v',"\n"); //What string to compare it with? "\n" and " " are wrong
+        inputTest(7,'s',"Ready to start a new game?");
+
+        inputTest(2,'y',"Please choose: s = standard mode");
+        inputTest(3,'s',"Please choose four colors from");
 
         testGame();
     }
