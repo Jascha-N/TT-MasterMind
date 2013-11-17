@@ -28,7 +28,7 @@ public abstract class BlackBox {
      * @param args program arguments
      * @throws IOException
      */
-    public void run(final String[] args) throws IOException {
+    public void run(final String[] args) throws IOException, ProgramTerminatedException {
         out = System.out;
         PipedInputStream programOut = new PipedInputStream(BUFFER_SIZE);
         reader = new InputStreamReader(programOut);
@@ -60,20 +60,22 @@ public abstract class BlackBox {
 
             thread.start();
 
-            try {
-                performTests();
+//            try {
+               performTests();
 //                try {
 //                    thread.join(); // Wait for program to finish
 //                } catch (InterruptedException e) {
 //                    Thread.currentThread().interrupt();
 //                }
-                System.err.println();
-                System.err.printf("Tests failed: %d; tests succeeded: %d.%n", testsFailed, testsPassed);
-            } catch(ProgramTerminatedException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
+
+//            } catch(ProgramTerminatedException e) {
+//                e.printStackTrace();
+//                System.exit(1);
+//            }
         } finally {
+//            System.err.println();
+//            System.err.printf("Tests failed: %d; tests succeeded: %d.%n", testsFailed, testsPassed);
+
             System.in.close();
             System.out.close();
             reader.close();
@@ -208,7 +210,7 @@ public abstract class BlackBox {
             testsPassed++;
         } else {
             testsFailed++;
-            System.err.printf("TEST:  %s failed.%n", description);
+            System.err.printf("  %s failed.%n", description);
         }
     }
 
@@ -237,5 +239,13 @@ public abstract class BlackBox {
      * @throws ProgramTerminatedException when the tested program has terminated
      */
     protected abstract void performTests() throws ProgramTerminatedException;
+
+    public int getTestsFailed() {
+        return testsFailed;
+    }
+
+    public int getTestsPassed() {
+        return testsPassed;
+    }
 
 }

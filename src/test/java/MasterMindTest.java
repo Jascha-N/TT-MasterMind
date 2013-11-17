@@ -8,6 +8,8 @@ public class MasterMindTest extends BlackBox {
     private static final Random random = new Random();
     private static final char[] PEGS = {'r', 'o', 'y', 'g', 'b', 'i'};
 
+    private boolean solutionFound;
+
     // UTILITY FUNCTIONS
 
 //    private void testRandomInvalidInputs(String... validInputs) {
@@ -87,7 +89,7 @@ public class MasterMindTest extends BlackBox {
      * @throws ProgramTerminatedException when the tested program has terminated
      */
     private void testGame() throws ProgramTerminatedException {
-        boolean solutionFound = false;
+        solutionFound = false;
         int guess = 0;
 
         // Test Case ID: 6 & 9
@@ -119,7 +121,7 @@ public class MasterMindTest extends BlackBox {
                     else {
                         performInput('c');
                         output = readAndPrintLines();
-                        String [] splitOutput = output[guess+2].split("\\:");
+                        String[] splitOutput = output[guess+2].split(":");
                         curOutput = splitOutput[1];
                     }
                 }
@@ -254,8 +256,29 @@ public class MasterMindTest extends BlackBox {
      * @throws IOException
      */
     public static void main(String[] args) throws IOException {
-        BlackBox blackBox = new MasterMindTest();
-        blackBox.run(args);
+        MasterMindTest test = new MasterMindTest();
+        int testsPassed = 0;
+        int testsFailed = 0;
+        int runs = 0;
+        int crashes = 0;
+        do {
+            runs++;
+
+            System.err.printf("Run %d:%n", runs);
+            try {
+                test.run(args);
+                System.err.println("  Finished successfully.");
+            } catch (ProgramTerminatedException e) {
+                crashes += 1;
+                System.err.println("  Crashed with exception: " + e.getCause());
+            }
+
+            testsPassed += test.getTestsPassed();
+            testsFailed += test.getTestsFailed();
+        } while(!test.solutionFound);
+
+        System.err.printf("Runs performed: %d; runs crashed: %d.%n", runs, crashes);
+        System.err.printf("Tests performed: %d; tests failed: %d.%n", testsPassed + testsFailed, testsFailed);
     }
 
 }
