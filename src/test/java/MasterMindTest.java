@@ -154,7 +154,7 @@ public class MasterMindTest extends BlackBox {
             }
             guess++;
         }
-
+        int hints = 0;
         while(!solutionFound) {// Randomly guessing until it finds the answer actually does work
             StringBuilder inputs = new StringBuilder();
             // Test Case ID: 4
@@ -194,10 +194,21 @@ public class MasterMindTest extends BlackBox {
 
             if (!solutionFound) {
                 // Test Case ID: 7
-                performInput('c');
+                char input = performRandomInput('c', 'h');
                 String[] output = readAndPrintLines();
-                test("Test 7", output[1].contains("Summary of guesses"));
-                test("Test 7_2", output[guess+2].contains("Guess " + (guess + 1) + ": " + inputs.toString()));
+                int offset = 0;
+                if (input == 'h') {
+                    if (hints < 4) {
+                        test("Test Xa", output[0].startsWith("Hint: There is at least"));
+                        hints++;
+                    } else {
+                        test("Test Xb", output[0].startsWith("Hint: Sorry, you have"));
+                    }
+                    offset = 1;
+                }
+
+                test("Test 7", output[offset + 1].contains("Summary of guesses"));
+                test("Test 7_2", output[offset+guess+2].contains("Guess " + (guess + 1) + ": " + inputs.toString()));
             }
 
             guess++;
