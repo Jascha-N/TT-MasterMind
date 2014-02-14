@@ -33,7 +33,6 @@ public abstract class Adapter {
             } while (!result.equals("A_QUIT"));
 
             if (thread != null) {
-                System.out.println("kaas");
                 thread.interrupt();
                 process.destroy();
             }
